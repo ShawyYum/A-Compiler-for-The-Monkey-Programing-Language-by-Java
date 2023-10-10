@@ -1,0 +1,152 @@
+package code;
+
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+
+import static code.Code.Opcode.*;
+
+public class Code {
+    public enum Opcode {
+        OpConstant((byte)0),
+        OpAdd((byte)1),
+        OpPop((byte)2),
+        OpSub((byte)3),
+        OpMul((byte)4),
+        OpDiv((byte)5),
+        OpTrue((byte)6),
+        OpFalse((byte)7),
+        OpEqual((byte)8),
+        OpNotEqual((byte)9),
+        OpGreaterThan((byte)10),
+        OpMinus((byte)11),
+        OpBang((byte)12),
+        OpJumpNotTruthy((byte)13),
+        OpJump((byte)14),
+        OpNull((byte)15),
+        OpGetGlobal((byte)16),
+        OpSetGlobal((byte)17),
+        OpArray((byte)18),
+        OpHash((byte)19),
+        OpIndex((byte)20),
+        OpCall((byte)21),
+        OpReturnValue((byte)22),
+        OpReturn((byte)23),
+        OpGetLocal((byte)24),
+        OpSetLocal((byte)25),
+        OpGetBuiltin((byte)26),
+        OpClosure((byte)27),
+        OpGetFree((byte)28),
+        OpCurrentClosure((byte)29),
+        OpGreater((byte)30);
+
+        private final byte value;
+
+        Opcode(byte v) {
+            value = v;
+        }
+
+        public byte getValue() {
+            return value;
+        }
+    }
+
+
+    public static class Definition {
+        public String Name;
+        public ArrayList<Integer> OperandWidths;
+
+        public Definition(String n,ArrayList<Integer> o) {
+            Name = n;
+            OperandWidths = o;
+        }
+    }
+
+    public static final HashMap<Byte, Definition> definitions = new HashMap<>() {
+        {
+            put(OpConstant.getValue(), new Definition("OpConstant", new ArrayList<>(List.of(2))));
+            put(OpAdd.getValue(), new Definition("OpAdd", new ArrayList<>()));
+            put(OpPop.getValue(), new Definition("OpPop", new ArrayList<>()));
+            put(OpSub.getValue(), new Definition("OpSub", new ArrayList<>()));
+            put(OpMul.getValue(), new Definition("OpMul", new ArrayList<>()));
+            put(OpDiv.getValue(), new Definition("OpDiv", new ArrayList<>()));
+            put(OpTrue.getValue(), new Definition("OpTrue", new ArrayList<>()));
+            put(OpFalse.getValue(), new Definition("OpFalse", new ArrayList<>()));
+            put(OpEqual.getValue(), new Definition("OpEqual", new ArrayList<>()));
+            put(OpNotEqual.getValue(), new Definition("OpNotEqual", new ArrayList<>()));
+            put(OpGreaterThan.getValue(), new Definition("OpGreaterThan", new ArrayList<>()));
+            put(OpMinus.getValue(), new Definition("OpMinus", new ArrayList<>()));
+            put(OpBang.getValue(), new Definition("OpBang", new ArrayList<>()));
+            put(OpJumpNotTruthy.getValue(), new Definition("OpJumpNotTruthy", new ArrayList<>(List.of(2))));
+            put(OpJump.getValue(), new Definition("OpJump", new ArrayList<>(List.of(2))));
+            put(OpNull.getValue(), new Definition("OpNull", new ArrayList<>()));
+            put(OpGetGlobal.getValue(), new Definition("OpGetGlobal", new ArrayList<>(List.of(2))));
+            put(OpSetGlobal.getValue(), new Definition("OpSetGlobal", new ArrayList<>(List.of(2))));
+            put(OpArray.getValue(), new Definition("OpArray", new ArrayList<>(List.of(2))));
+            put(OpHash.getValue(), new Definition("OpHash", new ArrayList<>(List.of(2))));
+            put(OpIndex.getValue(), new Definition("OpIndex", new ArrayList<>()));
+            put(OpCall.getValue(), new Definition("OpCall", new ArrayList<>(List.of(1))));
+            put(OpReturnValue.getValue(), new Definition("OpReturnValue", new ArrayList<>()));
+            put(OpReturn.getValue(), new Definition("OpReturn", new ArrayList<>()));
+            put(OpGetLocal.getValue(), new Definition("OpGetLocal", new ArrayList<>(List.of(1))));
+            put(OpSetLocal.getValue(), new Definition("OpSetLocal", new ArrayList<>(List.of(1))));
+            put(OpGetBuiltin.getValue(), new Definition("OpGetBuiltin", new ArrayList<>(List.of(1))));
+            put(OpClosure.getValue(), new Definition("OpClosure", new ArrayList<>(Arrays.asList(2, 1))));
+            put(OpGetFree.getValue(), new Definition("OpGetFree", new ArrayList<>(List.of(1))));
+            put(OpCurrentClosure.getValue(), new Definition("OpCurrentClosure", new ArrayList<>()));
+            put(OpGreater.getValue(), new Definition("OpGreaterThan", new ArrayList<>()));
+        }
+    };
+
+
+    public static ArrayList<Byte> Make(byte op,int... operands) {
+        Definition def;
+        if(definitions.containsKey(op)) {
+            def = definitions.get(op);
+        }
+        else {
+            return new ArrayList<>();
+        }
+
+        int instructionLen = 1;
+        for(var w : def.OperandWidths) {
+            instructionLen += w;
+        }
+
+        var instruction = new ArrayList<Byte>(instructionLen);
+        instruction.add(op);
+
+        for(int i = 0;i < operands.length;i++) {
+            var o = operands[i];
+            var width = def.OperandWidths.get(i);
+            switch (width) {
+                case 2:
+                    short shortValue = (short) o;
+                    instruction.add((byte)((shortValue >> 8) & 0xFF));
+                    instruction.add((byte)(shortValue & 0xFF));
+                    break;
+                case 1:
+                    instruction.add((byte)o);
+                    break;
+            }
+        }
+
+        return instruction;
+    }
+
+    public static int ReadUint16(ArrayList<Byte> ins, int offset) {
+        ByteBuffer buffer = ByteBuffer.allocate(2);
+
+        buffer.put(ins.get(offset));
+        buffer.put(ins.get(offset + 1));
+
+        buffer.flip();
+        return buffer.getShort();
+    }
+
+    public static int ReadUint8(ArrayList<Byte> ins, int offset) {
+        return (byte)(ins.get(offset) & 0xFF);
+    }
+}
