@@ -1,0 +1,485 @@
+package compiler;
+
+import ast.Ast;
+import code.Code;
+import object.Object;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Objects;
+import static code.Code.Opcode.*;
+
+public class Compiler {
+    
+    public static final Object.Error ERROR = new Object.Error("");
+
+    public static class Bytecode {
+        public ArrayList<Byte> Instructions;
+        public ArrayList<Object> Constants;
+
+        public Bytecode(ArrayList<Byte> i,ArrayList<Object> c)  {
+            Instructions = i;
+            Constants = c;
+        }
+    }
+
+    public Bytecode bytecode() {
+        return new Bytecode(currentInstructions(),constants);
+    }
+
+    public static class EmittedInstruction {
+        public byte Opcode;
+        public int Position;
+
+        public EmittedInstruction() {}
+
+        public EmittedInstruction(byte o,int p) {
+            Opcode = o;
+            Position = p;
+        }
+    }
+
+    public static class CompilationScope {
+
+        public ArrayList<Byte> instructions;
+        public EmittedInstruction lastInstruction;
+        public EmittedInstruction previousInstruction;
+
+        public CompilationScope(ArrayList<Byte> i,EmittedInstruction l,EmittedInstruction p) {
+            instructions = i;
+            lastInstruction = l;
+            previousInstruction = p;
+        }
+    }
+    public ArrayList<Object> constants;
+    public SymbolTable symbolTable;
+    public ArrayList<CompilationScope> scopes;
+    public int scopeIndex;
+
+    public Compiler(SymbolTable s,ArrayList<Object> constant) {
+        var mainScope = new CompilationScope(new ArrayList<>(), new EmittedInstruction(), new EmittedInstruction());
+        scopes = new ArrayList<>();
+        scopes.add(mainScope);
+        scopeIndex = 0;
+        symbolTable = s;
+        constants = constant;
+    }
+
+    public Object.Error Compile(Ast.Node node) {
+        switch (node) {
+            case Ast.Program program -> {
+                for(var s : program.Statements) {
+                    var err = Compile(s);
+                    if(!Objects.equals(err.Message,"")) {
+                        return err;
+                    }
+                }
+            }
+
+
+            case Ast.BlockStatement blockStatement -> {
+                for(var s : blockStatement.Statements) {
+                    var err = Compile(s);
+                    if(!Objects.equals(err.Message,"")) {
+                        return err;
+                    }
+                }
+            }
+
+            case Ast.ExpressionStatement expressionStatement -> {
+                var err = Compile(expressionStatement.Expression);
+                if (!Objects.equals(err.Message, "")) {
+                    return err;
+                }
+                emit(OpPop.getValue());
+            }
+
+            case Ast.ReturnStatement returnStatement -> {
+                var err = Compile(returnStatement.ReturnValue);
+                if (!Objects.equals(err.Message, "")) {
+                    return err;
+                }
+
+                emit(OpReturnValue.getValue());
+            }
+
+            case Ast.LetStatement letStatement -> {
+                var symbol = symbolTable.Define(letStatement.Name.Value);
+                var err = Compile(letStatement.Value);
+                if (!Objects.equals(err.Message, "")) {
+                    return err;
+                }
+
+                if (Objects.equals(symbol.Scope, SymbolTable.SymbolScope.GLOBAL.getValue())) {
+                    emit(OpSetGlobal.getValue(), symbol.Index);
+                } else {
+                    emit(OpSetLocal.getValue(), symbol.Index);
+                }
+            }
+
+            case Ast.IntegerLiteral integerLiteral -> {
+                var integer = new Object.Integer(integerLiteral.Value);
+                emit(OpConstant.getValue(), addConstant(integer));
+            }
+
+            case Ast.CharLiteral charLiteral -> {
+                var c = new Object.Char(charLiteral.Value);
+                emit(OpConstant.getValue(), addConstant(c));
+            }
+
+            case Ast.StringLiteral stringLiteral -> {
+                var str = new Object.String(stringLiteral.Value);
+                emit(OpConstant.getValue(), addConstant(str));
+            }
+
+            case Ast.Boolean aBoolean -> {
+                if (aBoolean.Value) {
+                    emit(OpTrue.getValue());
+                } else {
+                    emit(OpFalse.getValue());
+                }
+            }
+
+            case Ast.PrefixExpression prefixExpression -> {
+                var err = Compile(prefixExpression.Right);
+                if (!Objects.equals(err.Message, "")) {
+                    return err;
+                }
+
+                switch (prefixExpression.Operator) {
+                    case "!":
+                        emit(OpBang.getValue());
+                    case "-":
+                        emit(OpMinus.getValue());
+                    default:
+                        return new Object.Error(String.format("unknown operator %s", prefixExpression.Operator));
+                }
+            }
+
+            case Ast.InfixExpression infixExpression -> {
+                if (Objects.equals(infixExpression.Operator, "<")) {
+                    var err = Compile(infixExpression.Right);
+                    if (!Objects.equals(err.Message, "")) {
+                        return err;
+                    }
+
+                    err = Compile(infixExpression.Left);
+                    if (!Objects.equals(err.Message, "")) {
+                        return err;
+                    }
+                    emit(OpGreaterThan.getValue());
+                    return ERROR;
+                }
+
+                if (Objects.equals(infixExpression.Operator, "<=")) {
+                    var err = Compile(infixExpression.Right);
+                    if (!Objects.equals(err.Message, "")) {
+                        return err;
+                    }
+
+                    err = Compile(infixExpression.Left);
+                    if (!Objects.equals(err.Message, "")) {
+                        return err;
+                    }
+                    emit(OpGreater.getValue());
+                    return ERROR;
+                }
+
+                var err = Compile(infixExpression.Left);
+                if (!Objects.equals(err.Message, "")) {
+                    return err;
+                }
+
+                err = Compile(infixExpression.Right);
+                if (!Objects.equals(err.Message, "")) {
+                    return err;
+                }
+
+                switch (infixExpression.Operator) {
+                    case "+":
+                        emit(OpAdd.getValue());
+                        break;
+                    case "-":
+                        emit(OpSub.getValue());
+                        break;
+                    case "*":
+                        emit(OpMul.getValue());
+                        break;
+                    case "/":
+                        emit(OpDiv.getValue());
+                        break;
+                    case ">":
+                        emit(OpGreaterThan.getValue());
+                        break;
+                    case ">=":
+                        emit(OpGreater.getValue());
+                        break;
+                    case "==":
+                        emit(OpEqual.getValue());
+                        break;
+                    case "!=":
+                        emit(OpNotEqual.getValue());
+                        break;
+                    default:
+                        return new Object.Error(String.format("unknown operator %s", infixExpression.Operator));
+
+                }
+            }
+
+            case Ast.IfExpression ifExpression -> {
+                var err = Compile(ifExpression.Condition);
+                if (!Objects.equals(err.Message, "")) {
+                    return err;
+                }
+
+                var jumpNotTruthyPos = emit(OpJumpNotTruthy.getValue(), 9999);
+
+                err = Compile(ifExpression.Consequence);
+                if (!Objects.equals(err.Message, "")) {
+                    return err;
+                }
+
+                if (lastInstructionIs(OpPop.getValue())) {
+                    removeLastPop();
+                }
+
+                var jumpPos = emit(OpJump.getValue(), 9999);
+
+                var afterConsequencePos = (currentInstructions()).size();
+                changeOperand(jumpNotTruthyPos, afterConsequencePos);
+
+                if (ifExpression.Alternative == null) {
+                    emit(OpNull.getValue());
+                } else {
+                    err = Compile(ifExpression.Alternative);
+                    if (!Objects.equals(err.Message, "")) {
+                        return err;
+                    }
+
+                    if (lastInstructionIs(OpPop.getValue())) {
+                        removeLastPop();
+                    }
+                }
+
+                var afterAlternativePos = (currentInstructions()).size();
+                changeOperand(jumpPos, afterAlternativePos);
+            }
+
+            case Ast.Identifier identifier -> {
+                var result = symbolTable.Resolve(identifier.Value);
+                if (!result.second) {
+                    return new Object.Error(String.format("undefined variable %s", identifier.Value));
+                }
+
+                loadSymbol(result.first);
+            }
+
+            case Ast.FunctionLiteral functionLiteral -> {
+                enterScope();
+
+                if (!Objects.equals(functionLiteral.Name, "")) {
+                    symbolTable.DefineFunctionName(functionLiteral.Name);
+                }
+
+                for (var p : functionLiteral.Parameters) {
+                    symbolTable.Define(p.Value);
+                }
+
+                var err = Compile(functionLiteral.Body);
+                if (!Objects.equals(err.Message, "")) {
+                    return err;
+                }
+
+                if (lastInstructionIs(OpPop.getValue())) {
+                    replaceLastPopWithReturn();
+                }
+
+                if (!lastInstructionIs(OpReturnValue.getValue())) {
+                    emit(OpReturn.getValue());
+                }
+
+                var freeSymbols = symbolTable.FreeSymbols;
+                var numLocals = symbolTable.numDefinitions;
+                var instructions = leaveScope();
+
+                for (var s : freeSymbols) {
+                    loadSymbol(s);
+                }
+
+                var compiledFn = new Object.CompiledFunction(instructions, numLocals, functionLiteral.Parameters.size());
+
+                var fnIndex = addConstant(compiledFn);
+                emit(OpClosure.getValue(), fnIndex, freeSymbols.size());
+            }
+
+            case Ast.CallExpression callExpression -> {
+                var err = Compile(callExpression.Function);
+                if (!Objects.equals(err.Message, "")) {
+                    return err;
+                }
+
+                for (var a : callExpression.Arguments) {
+                    err = Compile(a);
+                    if (!Objects.equals(err.Message, "")) {
+                        return err;
+                    }
+                }
+
+                emit(OpCall.getValue(), callExpression.Arguments.size());
+            }
+
+            case Ast.ArrayLiteral arrayLiteral -> {
+                for(var el : arrayLiteral.ELements) {
+                    var err = Compile(el);
+                    if(!Objects.equals(err.Message,"")) {
+                        return err;
+                    }
+                }
+
+                emit(OpArray.getValue(), arrayLiteral.ELements.size());
+            }
+
+            case Ast.IndexExpression indexExpression -> {
+                var err = Compile(indexExpression.Left);
+                if(!Objects.equals(err.Message, "")) {
+                    return err;
+                }
+
+                err = Compile(indexExpression.Index);
+                if(!Objects.equals(err.Message, "")) {
+                    return err;
+                }
+
+                emit(OpIndex.getValue());
+            }
+
+            case Ast.HashLiteral hashLiteral -> {
+                var keys = new ArrayList<>(hashLiteral.Pairs.keySet());
+                keys.sort(Comparator.comparing(Ast.Node::String));
+
+                for (var k : keys) {
+                    var err = Compile(k);
+                    if (!Objects.equals(err.Message, "")) {
+                        return err;
+                    }
+
+                    err = Compile(hashLiteral.Pairs.get(k));
+                    if (!Objects.equals(err.Message, "")) {
+                        return err;
+                    }
+                }
+
+                emit(OpHash.getValue(), hashLiteral.Pairs.size() * 2);
+            }
+            case null, default -> {
+                return ERROR;
+            }
+        }
+
+        return ERROR;
+    }
+
+    public int addConstant(Object obj) {
+        constants.add(obj);
+        return constants.size() - 1;
+    }
+
+    public int emit(byte op,int... operands) {
+        var ins = Code.Make(op,operands);
+        var pos = addInstruction(ins);
+
+        setLastInstruction(op,pos);
+
+        return pos;
+    }
+
+    public int addInstruction(ArrayList<Byte> ins) {
+        var posNewInstruction = (currentInstructions()).size();
+        var updatedInstructions = currentInstructions();
+        updatedInstructions.addAll(ins);
+
+        scopes.get(scopeIndex).instructions = updatedInstructions;
+
+        return posNewInstruction;
+    }
+
+    public void setLastInstruction(byte op,int pos) {
+        var previous = scopes.get(scopeIndex).lastInstruction;
+        var last = new EmittedInstruction(op, pos);
+
+        scopes.get(scopeIndex).previousInstruction = previous;
+        scopes.get(scopeIndex).lastInstruction = last;
+    }
+
+    public boolean lastInstructionIs(byte op) {
+        if(currentInstructions().isEmpty()) {
+            return false;
+        }
+
+        return scopes.get(scopeIndex).lastInstruction.Opcode == op;
+    }
+
+    public void removeLastPop() {
+        var last = scopes.get(scopeIndex).lastInstruction;
+        var previous = scopes.get(scopeIndex).previousInstruction;
+
+        var old = currentInstructions();
+
+        scopes.get(scopeIndex).instructions = new ArrayList<>(old.subList(0, last.Position));
+        scopes.get(scopeIndex).lastInstruction = previous;
+    }
+
+    public void replaceInstruction(int pos,ArrayList<Byte> newInstruction) {
+        var ins = currentInstructions();
+
+        for(int i = 0;i < newInstruction.size();i++) {
+            ins.set(pos + i,newInstruction.get(i));
+        }
+    }
+
+    public void changeOperand(int opPos,int operand) {
+        var op = (byte)(currentInstructions().get(opPos));
+        var newInstruction = Code.Make(op,operand);
+
+        replaceInstruction(opPos,newInstruction);
+    }
+
+    public ArrayList<Byte> currentInstructions() {
+        return scopes.get(scopeIndex).instructions;
+    }
+
+    public void enterScope() {
+        var scope = new CompilationScope(new ArrayList<>(), new EmittedInstruction(), new EmittedInstruction());
+        scopes.add(scope);
+        scopeIndex++;
+
+        symbolTable = new SymbolTable(symbolTable);
+    }
+
+    public ArrayList<Byte> leaveScope() {
+        var instructions = currentInstructions();
+
+        scopes = new ArrayList<>(scopes.subList(0,scopes.size() - 1));
+        scopeIndex--;
+
+        symbolTable = symbolTable.Outer;
+
+        return instructions;
+    }
+
+    public void replaceLastPopWithReturn() {
+        var lastPos = scopes.get(scopeIndex).lastInstruction.Position;
+        replaceInstruction(lastPos,Code.Make(OpReturnValue.getValue()));
+
+        scopes.get(scopeIndex).lastInstruction.Opcode = OpReturnValue.getValue();
+    }
+
+    public void loadSymbol(SymbolTable.Symbol s) {
+        switch (s.Scope) {
+            case "GLOBAL" -> emit(OpGetGlobal.getValue(),s.Index);
+            case "LOCAL" -> emit(OpGetLocal.getValue(),s.Index);
+            case "BUILTIN" -> emit(OpGetBuiltin.getValue(),s.Index);
+            case "FREE" -> emit(OpGetFree.getValue(),s.Index);
+            case "FUNCTION" -> emit(OpCurrentClosure.getValue());
+        }
+    }
+}
