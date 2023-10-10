@@ -1,0 +1,282 @@
+package object;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public interface Object {
+    java.lang.String NULL_OBJ = "NULL";
+    java.lang.String ERROR_OBJ = "ERROR";
+
+    java.lang.String INTEGER_OBJ = "INTEGER";
+    java.lang.String BOOLEAN_OBJ = "BOOLEAN";
+    java.lang.String CHAR_OBJ = "CHAR";
+    java.lang.String STRING_OBJ = "STRING";
+
+    java.lang.String BUILTIN_OBJ = "BUILTIN";
+
+    java.lang.String ARRAY_OBJ = "ARRAY";
+    java.lang.String HASH_OBJ = "HASH";
+
+
+    java.lang.String COMPILED_FUNCTION_OBJ = "COMPILED_FUNCTION_OBJ";
+
+    java.lang.String CLOSURE_OBJ = "CLOSURE_OBJ";
+
+    java.lang.String Type();
+    java.lang.String Inspect();
+
+    interface BuiltinFunction {
+        Object Fn(Object... args);
+    }
+
+    interface Hashable {
+        HashKey Hashkey();
+    }
+
+    class HashKey {
+        public java.lang.String Type;
+        public int Value;
+
+        public HashKey(java.lang.String s, int v) {
+            Type = s;
+            Value = v;
+        }
+    }
+
+    class Integer implements Object,Hashable {
+        public int Value;
+
+        public Integer(int v) {
+            Value = v;
+        }
+
+        public java.lang.String Type() {
+            return INTEGER_OBJ;
+        }
+
+        public java.lang.String Inspect() {
+            return java.lang.String.format("%d",Value);
+        }
+
+        public HashKey Hashkey() {
+            return new HashKey(Type(),Value);
+        }
+    }
+
+    class Boolean implements Object,Hashable {
+        public boolean Value;
+
+        public Boolean(boolean b) {
+            Value = b;
+        }
+
+        public java.lang.String Type() {
+            return BOOLEAN_OBJ;
+        }
+
+        public java.lang.String Inspect() {
+            return java.lang.String.format("%b",Value);
+        }
+
+        public HashKey Hashkey() {
+            int value;
+
+            if(Value) {
+                value = 1;
+            }
+            else {
+                value = 0;
+            }
+
+            return new HashKey(Type(),value);
+        }
+    }
+
+    class Null implements Object {
+        public Null() {
+
+        }
+
+        public java.lang.String Type() {
+            return NULL_OBJ;
+        }
+
+        public java.lang.String Inspect() {
+            return "null";
+        }
+    }
+
+    class Error implements Object {
+        public java.lang.String Message;
+
+        public Error(java.lang.String m) {
+            Message = m;
+        }
+
+        public java.lang.String Type() {
+            return ERROR_OBJ;
+        }
+
+        public java.lang.String Inspect() {
+            return "ERROR: " + Message;
+        }
+    }
+
+    class String implements Object,Hashable {
+        public java.lang.String Value;
+
+        public String(java.lang.String v) {
+            Value = v;
+        }
+
+        public java.lang.String Type() {
+            return STRING_OBJ;
+        }
+
+        public java.lang.String Inspect() {
+            return Value;
+        }
+
+        public HashKey Hashkey() {
+            return new HashKey(Type(),Value.hashCode());
+        }
+    }
+
+    class Builtin implements Object {
+        public BuiltinFunction Fn;
+
+        public Builtin(BuiltinFunction b) {
+            Fn = b;
+        }
+
+        public java.lang.String Type() {
+            return BUILTIN_OBJ;
+        }
+
+        public java.lang.String Inspect() {
+            return "builtin function";
+        }
+    }
+
+    class Array implements Object {
+        public ArrayList<Object> Elements;
+
+        public Array(ArrayList<Object> e) {
+            Elements = e;
+        }
+
+        public java.lang.String Type() {
+            return ARRAY_OBJ;
+        }
+
+        public java.lang.String Inspect() {
+            StringBuilder output = new StringBuilder("[");
+            ArrayList<java.lang.String> elements = new ArrayList<>();
+
+            for (var s : Elements) {
+                elements.add(s.Inspect());
+            }
+
+            output.append(java.lang.String.join(", ", elements));
+            output.append("]");
+
+            return output.toString();
+        }
+    }
+
+    class HashPair {
+        public Object Key;
+        public Object Value;
+
+        public HashPair(Object k,Object v) {
+            Key = k;
+            Value = v;
+        }
+    }
+
+    class Hash implements Object {
+        public HashMap<HashKey,HashPair> Pairs;
+
+        public Hash(HashMap<HashKey,HashPair> p) {
+            Pairs = p;
+        }
+
+        public java.lang.String Type() {
+            return HASH_OBJ;
+        }
+
+        public java.lang.String Inspect() {
+            List<java.lang.String> pairs = Pairs.values().stream()
+                    .map(hashPair -> java.lang.String.format("%s: %s", hashPair.Key.Inspect(), hashPair.Value.Inspect()))
+                    .collect(Collectors.toList());
+
+            return "{" + java.lang.String.join(", ", pairs) + "}";
+        }
+    }
+
+    class Char implements Object,Hashable {
+        public char Value;
+
+        public Char(char v) {
+            Value = v;
+        }
+
+        public java.lang.String Type() {
+            return CHAR_OBJ;
+        }
+
+        public java.lang.String Inspect() {
+            return java.lang.String.valueOf(Value);
+        }
+
+        public HashKey Hashkey() {
+            return new HashKey(Type(),Character.hashCode(Value));
+        }
+    }
+
+    class CompiledFunction implements Object{
+        public ArrayList<Byte> Instructions;
+        public int Numlocals;
+        public int Numparameters;
+
+        public CompiledFunction(ArrayList<Byte> i) {
+            Instructions = i;
+        }
+
+        public CompiledFunction(ArrayList<Byte> i,int numl,int nump) {
+            Instructions = i;
+            Numlocals = numl;
+            Numparameters = nump;
+        }
+
+        public java.lang.String Type() {
+            return COMPILED_FUNCTION_OBJ;
+        }
+
+        public java.lang.String Inspect() {
+            return java.lang.String.format("CompiledFunction[" + this + "]");
+        }
+    }
+
+    class Closure implements Object{
+        public CompiledFunction Fn;
+        public ArrayList<Object> Free;
+
+        public Closure(CompiledFunction f) {
+            Fn = f;
+        }
+
+        public Closure(CompiledFunction f,ArrayList<Object> fr) {
+            Fn = f;
+            Free = fr;
+        }
+
+        public java.lang.String Type() { return CLOSURE_OBJ; }
+
+        public java.lang.String Inspect() {
+            return java.lang.String.format("Closure[" + this + "]");
+        }
+    }
+}
