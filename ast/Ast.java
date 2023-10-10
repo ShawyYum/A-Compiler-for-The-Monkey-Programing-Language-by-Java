@@ -1,10 +1,10 @@
 package ast;
 
 import token.Token;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.StringJoiner;
 
 public class Ast {
     public interface Node {
@@ -42,11 +42,11 @@ public class Ast {
     }
 
     public static class LetStatement implements Statement {
-        public Token.token Token;
+        public Token Token;
         public Identifier Name;
         public Expression Value;
 
-        public LetStatement(Token.token t) {
+        public LetStatement(Token t) {
             Token = t;
         }
 
@@ -72,10 +72,10 @@ public class Ast {
     }
 
     public static class ReturnStatement implements Statement {
-        public Token.token Token;
+        public Token Token;
         public Expression ReturnValue;
 
-        public ReturnStatement(Token.token t) {
+        public ReturnStatement(Token t) {
             Token = t;
         }
 
@@ -101,10 +101,10 @@ public class Ast {
     }
 
     public static class ExpressionStatement implements Statement {
-        public Token.token Token;
+        public Token Token;
         public Expression Expression;
 
-        public ExpressionStatement(Token.token t) {
+        public ExpressionStatement(Token t) {
             Token = t;
         }
 
@@ -123,10 +123,10 @@ public class Ast {
     }
 
     public static class BlockStatement implements Statement {
-        public Token.token Token;
+        public Token Token;
         public ArrayList<Statement> Statements = new ArrayList<>();
 
-        public BlockStatement(Token.token t) {
+        public BlockStatement(Token t) {
             Token = t;
         }
 
@@ -148,10 +148,10 @@ public class Ast {
     }
 
     public static class Identifier implements Expression {
-        public Token.token Token;
+        public Token Token;
         public String Value;
 
-        public Identifier(Token.token t,String s) {
+        public Identifier(Token t,String s) {
             Token = t;
             Value = s;
         }
@@ -168,10 +168,10 @@ public class Ast {
     }
 
     public static class Boolean implements Expression {
-        public Token.token Token;
+        public Token Token;
         public java.lang.Boolean Value;
 
-        public Boolean(Token.token t, boolean b) {
+        public Boolean(Token t, boolean b) {
             Token = t;
             Value = b;
         }
@@ -188,10 +188,10 @@ public class Ast {
     }
 
     public static class IntegerLiteral implements Expression {
-        public Token.token Token;
+        public Token Token;
         public int Value;
 
-        public IntegerLiteral(Token.token t) {
+        public IntegerLiteral(Token t) {
             Token = t;
         }
 
@@ -207,11 +207,11 @@ public class Ast {
     }
 
     public static class PrefixExpression implements Expression {
-        public Token.token Token;
+        public Token Token;
         public String Operator;
         public Expression Right;
 
-        public PrefixExpression(Token.token t,String s) {
+        public PrefixExpression(Token t,String s) {
             Token = t;
             Operator = s;
         }
@@ -235,12 +235,12 @@ public class Ast {
     }
 
     public static class InfixExpression implements Expression {
-        public Token.token Token;
+        public Token Token;
         public Expression Left;
         public String Operator;
         public Expression Right;
 
-        public InfixExpression(Token.token t,String s,Expression e) {
+        public InfixExpression(Token t,String s,Expression e) {
             Token = t;
             Operator = s;
             Left = e;
@@ -266,12 +266,12 @@ public class Ast {
     }
 
     public static class IfExpression implements Expression {
-        public Token.token Token;
+        public Token Token;
         public Expression Condition;
         public BlockStatement Consequence;
         public BlockStatement Alternative;
 
-        public IfExpression(Token.token t) {
+        public IfExpression(Token t) {
             Token = t;
         }
 
@@ -299,11 +299,12 @@ public class Ast {
     }
 
     public static class FunctionLiteral implements Expression {
-        public Token.token Token;
+        public Token Token;
         public ArrayList<Identifier> Parameters = new ArrayList<>();
         public BlockStatement Body;
+        public String Name;
 
-        public FunctionLiteral(Token.token t) {
+        public FunctionLiteral(Token t) {
             Token = t;
         }
 
@@ -331,11 +332,11 @@ public class Ast {
     }
 
     public static class CallExpression implements Expression {
-        public Token.token Token;
+        public Token Token;
         public Expression Function;
         public ArrayList<Expression> Arguments = new ArrayList<>();
 
-        public CallExpression(Token.token t,Expression f) {
+        public CallExpression(Token t,Expression f) {
             Token = t;
             Function = f;
         }
@@ -363,10 +364,10 @@ public class Ast {
     }
 
     public static class StringLiteral implements Expression {
-        public Token.token Token;
+        public Token Token;
         public String Value;
 
-        public StringLiteral(Token.token t,String s) {
+        public StringLiteral(Token t,String s) {
             Token = t;
             Value = s;
         }
@@ -383,10 +384,10 @@ public class Ast {
     }
 
     public static class ArrayLiteral implements Expression {
-        public Token.token Token;
+        public Token Token;
         public ArrayList<Expression> ELements = new ArrayList<>();
 
-        public ArrayLiteral(Token.token t) {
+        public ArrayLiteral(Token t) {
             Token = t;
         }
 
@@ -413,11 +414,11 @@ public class Ast {
     }
 
     public static class IndexExpression implements Expression {
-        public Token.token Token;
+        public Token Token;
         public Expression Left;
         public Expression Index;
 
-        public IndexExpression(Token.token t,Expression e) {
+        public IndexExpression(Token t,Expression e) {
             Token = t;
             Left = e;
         }
@@ -442,10 +443,10 @@ public class Ast {
     }
 
     public static class HashLiteral implements Expression {
-        public Token.token Token;
+        public Token Token;
         public HashMap<Expression,Expression> Pairs = new HashMap<>();
 
-        public HashLiteral(Token.token t) {
+        public HashLiteral(Token t) {
             Token = t;
         }
 
@@ -472,10 +473,10 @@ public class Ast {
     }
 
     public static class CharLiteral implements Expression {
-        public Token.token Token;
+        public Token Token;
         public char Value;
 
-        public CharLiteral(Token.token t) {
+        public CharLiteral(Token t) {
             Token = t;
         }
 
