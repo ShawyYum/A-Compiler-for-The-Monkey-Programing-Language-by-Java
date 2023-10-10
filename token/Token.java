@@ -43,14 +43,12 @@ public class Token {
     public static final String ELSE = "ELSE";
     public static final String RETURN = "RETURN";
 
-    public static class token {
-        public String Type;
-        public String Literal;
+    public String Type;
+    public String Literal;
 
-        public token(String type,String literal) {
-            Type = type;
-            Literal = literal;
-        }
+    public Token(String type,String literal) {
+        Type = type;
+        Literal = literal;
     }
 
     private static final HashMap<String, String> keywords = new HashMap<>() {{
